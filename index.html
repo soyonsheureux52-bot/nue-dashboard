@@ -86,7 +86,9 @@ section.panel{ background:var(--surface); border:1px solid var(--border); border
 .legend .g i{ background:var(--accent-guest); }
 .legend .r i{ background:var(--accent-regular); }
 .chart-scroll{ overflow-x:auto; padding-bottom:4px; position:relative; }
-.hit-col{ fill:transparent; cursor:pointer; }
+.hit-col{ fill:transparent; cursor:pointer; outline:none; }
+.hit-col:focus{ outline:none; }
+.hit-col:focus-visible{ outline:1.5px solid var(--accent-guest); outline-offset:-2px; }
 .hit-col:hover ~ .gridline{ }
 .point-detail{
   position:absolute; z-index:5; min-width:148px;
