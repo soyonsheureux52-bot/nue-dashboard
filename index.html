@@ -96,7 +96,7 @@ section.panel{ background:var(--surface); border:1px solid var(--border); border
   transform:translate(-50%, 0);
 }
 .point-detail .pd-date{ font-weight:600; font-size:13px; color:var(--fg); margin-bottom:2px; }
-.point-detail .pd-note{ color:var(--muted); margin-bottom:6px; }
+.point-detail .pd-note{ display:inline-block; color:var(--accent-guest); background:var(--accent-guest-soft); font-weight:600; font-size:11px; padding:2px 8px; border-radius:999px; margin-bottom:8px; }
 .point-detail .pd-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .point-detail .pd-row + .pd-row{ margin-top:3px; }
 .point-detail .pd-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; flex-shrink:0; }
@@ -338,9 +338,19 @@ img.max{ max-width:100%; }
       var r = rows[idx];
       if (!r) return;
       tooltip.innerHTML = pointDetailHtml(r);
-      tooltip.style.left = x(idx).toFixed(1) + "px";
-      tooltip.style.top = "6px";
       tooltip.hidden = false;
+      var tw = tooltip.offsetWidth;
+      var containerW = container.clientWidth;
+      var scrollL = container.scrollLeft;
+      var half = tw / 2;
+      var minLeft = scrollL + half + 4;
+      var maxLeft = scrollL + containerW - half - 4;
+      var left = x(idx);
+      if (maxLeft < minLeft){ left = scrollL + containerW / 2; }
+      else if (left < minLeft){ left = minLeft; }
+      else if (left > maxLeft){ left = maxLeft; }
+      tooltip.style.left = left.toFixed(1) + "px";
+      tooltip.style.top = "6px";
       activePointIdx = idx;
     }
     function hide(){
