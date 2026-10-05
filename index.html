@@ -85,7 +85,24 @@ section.panel{ background:var(--surface); border:1px solid var(--border); border
 .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
 .legend .g i{ background:var(--accent-guest); }
 .legend .r i{ background:var(--accent-regular); }
-.chart-scroll{ overflow-x:auto; padding-bottom:4px; }
+.chart-scroll{ overflow-x:auto; padding-bottom:4px; position:relative; }
+.hit-col{ fill:transparent; cursor:pointer; }
+.hit-col:hover ~ .gridline{ }
+.point-detail{
+  position:absolute; z-index:5; min-width:148px;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; box-shadow:0 12px 28px rgba(0,0,0,0.45);
+  font-size:12px; line-height:1.5; pointer-events:none;
+  transform:translate(-50%, 0);
+}
+.point-detail .pd-date{ font-weight:600; font-size:13px; color:var(--fg); margin-bottom:2px; }
+.point-detail .pd-note{ color:var(--muted); margin-bottom:6px; }
+.point-detail .pd-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.point-detail .pd-row + .pd-row{ margin-top:3px; }
+.point-detail .pd-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; flex-shrink:0; }
+.point-detail .pd-label{ display:flex; align-items:center; color:var(--muted); }
+.point-detail .pd-value{ font-family:'IBM Plex Mono', monospace; font-weight:600; font-variant-numeric:tabular-nums; }
+.point-detail .pd-total{ margin-top:6px; padding-top:6px; border-top:1px solid var(--border); display:flex; justify-content:space-between; font-weight:600; }
 .chart-scroll svg{ display:block; }
 .chart-scroll text{ fill:var(--fg); font-family:'Work Sans', sans-serif; }
 .chart-scroll .muted-text{ fill:var(--muted); }
@@ -250,6 +267,7 @@ img.max{ max-width:100%; }
   function renderChart(){
     var container = document.getElementById("chartScroll");
     var rows = state.rows;
+    activePointIdx = null;
     if (!rows.length){ container.innerHTML = '<div class="empty">아직 데이터가 없어요.</div>'; return; }
 
     var colW = 92, chartH = 380, padTop = 32, padBottom = 60, padLeft = 48, padRight = 28;
@@ -284,8 +302,78 @@ img.max{ max-width:100%; }
       svg += '<text class="muted-text" x="' + cx.toFixed(1) + '" y="' + (chartH - padBottom + 20) + '" font-size="12" font-weight="600" text-anchor="middle" fill="var(--fg)">' + escapeHtml(dateLabel) + '</text>';
       if (r.note) svg += '<text class="muted-text" x="' + cx.toFixed(1) + '" y="' + (chartH - padBottom + 38) + '" font-size="11" text-anchor="middle">' + escapeHtml(r.note) + '</text>';
     });
+
+    // invisible per-date hit columns, drawn last so they sit on top for clicks/taps
+    var hitW = n > 1 ? Math.min(colW, (width - padLeft - padRight) / (n - 1)) : width - padLeft - padRight;
+    rows.forEach(function(r, i){
+      var cx = x(i);
+      svg += '<rect class="hit-col" data-idx="' + i + '" x="' + (cx - hitW / 2).toFixed(1) + '" y="0" width="' + hitW.toFixed(1) + '" height="' + chartH + '" tabindex="0" role="button" aria-label="' + escapeHtml((formatShortDate(r.date) || r.rawDate) + ' 상세보기') + '"></rect>';
+    });
+
     svg += '</svg>';
     container.innerHTML = svg;
+    container.insertAdjacentHTML('beforeend', '<div class="point-detail" id="pointDetail" hidden></div>');
+    attachChartInteractions(rows, x);
+  }
+
+  var activePointIdx = null;
+
+  function pointDetailHtml(r){
+    var dateLabel = formatShortDate(r.date) || r.rawDate;
+    if (r.weekday) dateLabel += " (" + r.weekday + ")";
+    var total = r.guest + r.regular;
+    var html = '<div class="pd-date">' + escapeHtml(dateLabel) + '</div>';
+    if (r.note) html += '<div class="pd-note">' + escapeHtml(r.note) + '</div>';
+    html += '<div class="pd-row"><span class="pd-label"><span class="pd-dot" style="background:var(--accent-guest)"></span>게스트</span><span class="pd-value">' + r.guest + '</span></div>';
+    html += '<div class="pd-row"><span class="pd-label"><span class="pd-dot" style="background:var(--accent-regular)"></span>일반</span><span class="pd-value">' + r.regular + '</span></div>';
+    html += '<div class="pd-total"><span>합계</span><span>' + total + '</span></div>';
+    return html;
+  }
+
+  function attachChartInteractions(rows, x){
+    var container = document.getElementById("chartScroll");
+    var tooltip = document.getElementById("pointDetail");
+    if (!container || !tooltip) return;
+
+    function showFor(idx){
+      var r = rows[idx];
+      if (!r) return;
+      tooltip.innerHTML = pointDetailHtml(r);
+      tooltip.style.left = x(idx).toFixed(1) + "px";
+      tooltip.style.top = "6px";
+      tooltip.hidden = false;
+      activePointIdx = idx;
+    }
+    function hide(){
+      tooltip.hidden = true;
+      activePointIdx = null;
+    }
+
+    container.querySelectorAll(".hit-col").forEach(function(el){
+      el.addEventListener("click", function(e){
+        e.stopPropagation();
+        var idx = parseInt(el.getAttribute("data-idx"), 10);
+        if (activePointIdx === idx) hide(); else showFor(idx);
+      });
+      el.addEventListener("keydown", function(e){
+        if (e.key === "Enter" || e.key === " "){
+          e.preventDefault();
+          var idx = parseInt(el.getAttribute("data-idx"), 10);
+          if (activePointIdx === idx) hide(); else showFor(idx);
+        }
+      });
+    });
+
+    if (!document._nueDashOutsideClickBound){
+      document.addEventListener("click", function(e){
+        var tt = document.getElementById("pointDetail");
+        if (!tt || tt.hidden) return;
+        if (e.target.closest && (e.target.closest(".hit-col") || e.target.closest(".point-detail"))) return;
+        tt.hidden = true;
+        activePointIdx = null;
+      });
+      document._nueDashOutsideClickBound = true;
+    }
   }
 
   function buildLineSeries(rows, key, color, x, y, padTop, innerH){
