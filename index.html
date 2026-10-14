@@ -123,6 +123,12 @@ tr:last-child td{ border-bottom:none; }
 .error-box{ color:var(--danger); }
 footer{ text-align:center; font-size:12px; color:var(--muted); padding-bottom:8px; }
 img.max{ max-width:100%; }
+
+@media (max-width: 480px){
+  header.top{ flex-direction:column; align-items:flex-start; }
+  .refresh-box{ width:100%; align-items:flex-start; }
+  .status-line{ text-align:left; max-width:100%; }
+}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
