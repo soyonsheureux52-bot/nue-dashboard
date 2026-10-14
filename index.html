@@ -45,8 +45,9 @@ body{
 .brand-logo{ width:48px; height:48px; border-radius:50%; flex-shrink:0; filter:drop-shadow(0 0 14px rgba(232,95,242,0.35)); }
 h1{ font-family:'Bebas Neue', 'Work Sans', sans-serif; font-weight:400; font-size:clamp(34px,8vw,50px); letter-spacing:0.02em; text-transform:uppercase; margin:0; line-height:0.95; text-wrap:balance; }
 .subtitle{ color:var(--muted); font-size:12px; margin-top:6px; letter-spacing:0.12em; text-transform:uppercase; }
-header.top{ display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:flex-end; }
-.refresh-box{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; min-width:0; }
+header.top{ display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:flex-start; }
+.brand-row{ flex:1 1 auto; min-width:0; }
+.refresh-box{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:0 0 auto; min-width:0; }
 button.refresh{
   font-family:'Work Sans', sans-serif; font-weight:600; font-size:13px; letter-spacing:0.03em;
   background:var(--accent-guest); color:#1a0a1c; border:none; border-radius:999px;
@@ -60,7 +61,7 @@ button.refresh:disabled{ opacity:0.6; cursor:default; box-shadow:none; }
 button.refresh:focus-visible{ outline:2px solid var(--accent-guest); outline-offset:3px; }
 .spin{ display:inline-block; width:13px; height:13px; border-radius:50%; border:2px solid rgba(26,10,28,0.35); border-top-color:#1a0a1c; animation:spin .7s linear infinite; }
 @keyframes spin{ to{ transform:rotate(360deg); } }
-.status-line{ font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.status-line{ font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; max-width:220px; text-align:right; overflow-wrap:break-word; }
 .status-line.err{ color:var(--danger); }
 .stats-wrap{ display:flex; flex-direction:column; gap:18px; }
 .stats-group-label{ font-size:12px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; }
