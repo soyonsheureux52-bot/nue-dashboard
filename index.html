@@ -147,7 +147,7 @@ img.max{ max-width:100%; }
 
   <div class="stats-wrap">
     <div class="stats-group">
-      <div class="stats-group-label">오늘</div>
+      <div class="stats-group-label" id="todayLabel">오늘</div>
       <div class="stats" id="statsToday"></div>
     </div>
     <div class="stats-group">
@@ -267,14 +267,16 @@ img.max{ max-width:100%; }
     var totalRegular = rows.reduce(function(s, r){ return s + r.regular; }, 0);
     var totalAll = totalGuest + totalRegular;
 
-    var today = new Date();
-    var ty = today.getFullYear(), tm = today.getMonth(), td = today.getDate();
-    var todayRows = rows.filter(function(r){
-      return r.date && r.date.getUTCFullYear() === ty && r.date.getUTCMonth() === tm && r.date.getUTCDate() === td;
-    });
-    var todayGuest = todayRows.reduce(function(s, r){ return s + r.guest; }, 0);
-    var todayRegular = todayRows.reduce(function(s, r){ return s + r.regular; }, 0);
+    var latestRow = rows.length ? rows[rows.length - 1] : null;
+    var todayGuest = latestRow ? latestRow.guest : 0;
+    var todayRegular = latestRow ? latestRow.regular : 0;
     var todayAll = todayGuest + todayRegular;
+
+    var todayLabelEl = document.getElementById("todayLabel");
+    if (todayLabelEl){
+      var latestDateLabel = latestRow ? (formatShortDate(latestRow.date) || latestRow.rawDate) : "";
+      todayLabelEl.textContent = latestDateLabel ? ("오늘 (" + latestDateLabel + ")") : "오늘";
+    }
 
     document.getElementById("statsToday").innerHTML =
       statCard("게스트 누계", todayGuest, "guest") +
