@@ -62,6 +62,8 @@ button.refresh:focus-visible{ outline:2px solid var(--accent-guest); outline-off
 @keyframes spin{ to{ transform:rotate(360deg); } }
 .status-line{ font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
 .status-line.err{ color:var(--danger); }
+.stats-wrap{ display:flex; flex-direction:column; gap:18px; }
+.stats-group-label{ font-size:12px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; }
 .stats{ display:grid; grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); gap:12px; }
 .stat{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; min-width:0; }
 .stat .label{ font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
@@ -143,7 +145,16 @@ img.max{ max-width:100%; }
     </div>
   </header>
 
-  <div class="stats" id="stats"></div>
+  <div class="stats-wrap">
+    <div class="stats-group">
+      <div class="stats-group-label">오늘</div>
+      <div class="stats" id="statsToday"></div>
+    </div>
+    <div class="stats-group">
+      <div class="stats-group-label">전체 누계</div>
+      <div class="stats" id="statsTotal"></div>
+    </div>
+  </div>
 
   <section class="panel">
     <div class="panel-head">
@@ -254,11 +265,26 @@ img.max{ max-width:100%; }
     var rows = state.rows;
     var totalGuest = rows.reduce(function(s, r){ return s + r.guest; }, 0);
     var totalRegular = rows.reduce(function(s, r){ return s + r.regular; }, 0);
-    document.getElementById("stats").innerHTML =
+    var totalAll = totalGuest + totalRegular;
+
+    var today = new Date();
+    var ty = today.getFullYear(), tm = today.getMonth(), td = today.getDate();
+    var todayRows = rows.filter(function(r){
+      return r.date && r.date.getUTCFullYear() === ty && r.date.getUTCMonth() === tm && r.date.getUTCDate() === td;
+    });
+    var todayGuest = todayRows.reduce(function(s, r){ return s + r.guest; }, 0);
+    var todayRegular = todayRows.reduce(function(s, r){ return s + r.regular; }, 0);
+    var todayAll = todayGuest + todayRegular;
+
+    document.getElementById("statsToday").innerHTML =
+      statCard("게스트 누계", todayGuest, "guest") +
+      statCard("일반 누계", todayRegular, "regular") +
+      statCard("전체 방문", todayAll, "");
+
+    document.getElementById("statsTotal").innerHTML =
       statCard("게스트 누계", totalGuest, "guest") +
       statCard("일반 누계", totalRegular, "regular") +
-      statCard("전체 방문", totalGuest + totalRegular, "") +
-      statCard("기록된 날짜", rows.length, "");
+      statCard("전체 방문", totalAll, "");
   }
 
   function statCard(label, value, cls){
