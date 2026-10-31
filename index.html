@@ -83,11 +83,22 @@ section.panel{ background:var(--surface); border:1px solid var(--border); border
 }
 .chart-toggle button.active{ background:var(--accent-guest); color:#1a0a1c; }
 .chart-toggle button:focus-visible{ outline:2px solid var(--accent-guest); outline-offset:2px; }
-.legend{ display:flex; gap:18px; font-size:13px; color:var(--muted); margin-bottom:12px; flex-wrap:wrap; }
-.legend span{ display:inline-flex; align-items:center; gap:6px; }
-.legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
-.legend .g i{ background:var(--accent-guest); }
-.legend .r i{ background:var(--accent-regular); }
+.chart-filters{ display:flex; flex-wrap:wrap; gap:10px 22px; align-items:center; margin-bottom:14px; }
+.filter-group{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.filter-label{ font-size:11px; color:var(--muted); letter-spacing:0.08em; }
+.chip-group{ display:inline-flex; flex-wrap:wrap; gap:6px; }
+.chip{
+  font-family:'Work Sans', sans-serif; font-weight:600; font-size:12px; line-height:1;
+  background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:999px;
+  padding:8px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+  transition:background .15s ease, color .15s ease, border-color .15s ease;
+}
+.chip:hover{ color:var(--fg); }
+.chip:focus-visible{ outline:2px solid var(--accent-guest); outline-offset:2px; }
+.chip.day.active{ background:var(--accent-guest); border-color:var(--accent-guest); color:#1a0a1c; }
+.chip.series i{ width:8px; height:8px; border-radius:50%; display:inline-block; opacity:0.3; }
+.chip.series.active{ color:var(--fg); background:var(--surface-2); border-color:rgba(244,238,247,0.22); }
+.chip.series.active i{ opacity:1; }
 .chart-scroll{ overflow-x:auto; padding-bottom:4px; position:relative; }
 .hit-col{ fill:transparent; cursor:pointer; outline:none; }
 .hit-col:focus{ outline:none; }
@@ -174,9 +185,19 @@ img.max{ max-width:100%; }
         <button type="button" data-type="bar">막대그래프</button>
       </div>
     </div>
-    <div class="legend">
-      <span class="g"><i></i>게스트</span>
-      <span class="r"><i></i>일반</span>
+    <div class="chart-filters">
+      <div class="filter-group">
+        <span class="filter-label">요일</span>
+        <div class="chip-group" id="dayFilter" role="group" aria-label="요일 선택"></div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">표시</span>
+        <div class="chip-group" id="seriesFilter" role="group" aria-label="표시할 항목">
+          <button type="button" class="chip series active" data-series="guest" aria-pressed="true"><i style="background:var(--accent-guest)"></i>게스트</button>
+          <button type="button" class="chip series active" data-series="regular" aria-pressed="true"><i style="background:var(--accent-regular)"></i>일반</button>
+          <button type="button" class="chip series" data-series="total" aria-pressed="false"><i style="background:var(--fg)"></i>게스트+일반</button>
+        </div>
+      </div>
     </div>
     <div class="chart-scroll" id="chartScroll"></div>
   </section>
@@ -301,14 +322,62 @@ img.max{ max-width:100%; }
       '<div class="value">' + value.toLocaleString("ko-KR") + '</div></div>';
   }
 
+  var DAY_ORDER = ["월", "화", "수", "목", "금", "토", "일"];
+  var SERIES = [
+    { key: "guest", label: "게스트", color: "var(--accent-guest)" },
+    { key: "regular", label: "일반", color: "var(--accent-regular)" },
+    { key: "total", label: "게스트+일반", color: "var(--fg)" }
+  ];
+
+  function renderDayFilter(){
+    var el = document.getElementById("dayFilter");
+    if (!el) return;
+    var present = { "토": true, "일": true };
+    state.rows.forEach(function(r){ if (r.weekday) present[r.weekday] = true; });
+    var days = DAY_ORDER.filter(function(d){ return present[d]; });
+    if (state.dayFilter !== "all" && days.indexOf(state.dayFilter) < 0) state.dayFilter = "all";
+    var opts = [{ v: "all", t: "전체" }].concat(days.map(function(d){ return { v: d, t: d }; }));
+    el.innerHTML = opts.map(function(o){
+      var on = state.dayFilter === o.v;
+      return '<button type="button" class="chip day' + (on ? ' active' : '') + '" data-day="' + o.v + '" aria-pressed="' + on + '">' + o.t + '</button>';
+    }).join("");
+  }
+
+  function syncSeriesChips(){
+    var el = document.getElementById("seriesFilter");
+    if (!el) return;
+    el.querySelectorAll("button[data-series]").forEach(function(b){
+      var on = !!state.series[b.getAttribute("data-series")];
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
   function renderChart(){
+    renderDayFilter();
+    syncSeriesChips();
     var container = document.getElementById("chartScroll");
-    var rows = state.rows;
     activePointIdx = null;
-    if (!rows.length){ container.innerHTML = '<div class="empty">아직 데이터가 없어요.</div>'; return; }
+    if (!state.rows.length){ container.innerHTML = '<div class="empty">아직 데이터가 없어요.</div>'; return; }
+
+    var rows = state.rows
+      .filter(function(r){ return state.dayFilter === "all" || r.weekday === state.dayFilter; })
+      .map(function(r){
+        var c = {};
+        for (var k in r) c[k] = r[k];
+        c.total = r.guest + r.regular;
+        return c;
+      });
+    if (!rows.length){
+      container.innerHTML = '<div class="empty">' + escapeHtml(state.dayFilter) + '요일 데이터가 아직 없어요.</div>';
+      return;
+    }
+    var series = SERIES.filter(function(s){ return state.series[s.key]; });
 
     var colW = 92, chartH = 380, padTop = 32, padBottom = 44, padLeft = 48, padRight = 28;
-    var maxVal = rows.reduce(function(m, r){ return Math.max(m, r.guest, r.regular); }, 0);
+    var maxVal = rows.reduce(function(m, r){
+      return series.reduce(function(mm, s){ return Math.max(mm, r[s.key]); }, m);
+    }, 0);
     maxVal = Math.max(maxVal, 5);
     var niceMax = Math.ceil(maxVal / 5) * 5;
     var innerH = chartH - padTop - padBottom;
@@ -317,8 +386,9 @@ img.max{ max-width:100%; }
     function x(i){ return n > 1 ? padLeft + (i * (width - padLeft - padRight)) / (n - 1) : (padLeft + width - padRight) / 2; }
     function y(v){ return padTop + innerH - (v / niceMax) * innerH; }
 
-    var label = state.chartType === "bar" ? "날짜별 게스트와 일반 방문객 수 막대그래프" : "날짜별 게스트와 일반 방문객 수 선그래프";
-    var svg = '<svg viewBox="0 0 ' + width + ' ' + chartH + '" width="' + width + '" height="' + chartH + '" role="img" aria-label="' + label + '">';
+    var label = "날짜별 방문객 수 " + (state.chartType === "bar" ? "막대그래프" : "선그래프") +
+      " (" + series.map(function(s){ return s.label; }).join(", ") + ")";
+    var svg = '<svg viewBox="0 0 ' + width + ' ' + chartH + '" width="' + width + '" height="' + chartH + '" role="img" aria-label="' + escapeHtml(label) + '">';
     [0, niceMax / 2, niceMax].forEach(function(v){
       var gy = y(v);
       svg += '<line class="gridline" x1="' + padLeft + '" y1="' + gy + '" x2="' + (width - padRight) + '" y2="' + gy + '"></line>';
@@ -326,10 +396,12 @@ img.max{ max-width:100%; }
     });
 
     if (state.chartType === "bar"){
-      svg += buildBarSeries(rows, x, y, niceMax, padTop, innerH);
+      svg += buildBarSeries(rows, series, x, y, padTop, innerH);
     } else {
-      svg += buildLineSeries(rows, "regular", "var(--accent-regular)", x, y, padTop, innerH);
-      svg += buildLineSeries(rows, "guest", "var(--accent-guest)", x, y, padTop, innerH);
+      ["regular", "guest", "total"].forEach(function(key){
+        var s = series.filter(function(t){ return t.key === key; })[0];
+        if (s) svg += buildLineSeries(rows, s.key, s.color, x, y, padTop, innerH);
+      });
     }
 
     rows.forEach(function(r, i){
@@ -447,20 +519,23 @@ img.max{ max-width:100%; }
     return out;
   }
 
-  function buildBarSeries(rows, x, y, niceMax, padTop, innerH){
-    var barW = 22, gap = 8;
+  function buildBarSeries(rows, series, x, y, padTop, innerH){
+    var k = series.length;
+    var barW = k === 1 ? 30 : (k === 2 ? 22 : 16);
+    var gap = 4;
+    var groupW = k * barW + (k - 1) * gap;
     var areaBase = padTop + innerH;
     var out = "";
     rows.forEach(function(r, i){
-      var cx = x(i);
-      var gx = cx - barW - gap / 2;
-      var rx = cx + gap / 2;
-      var gh = Math.max(areaBase - y(r.guest), 0);
-      var rh = Math.max(areaBase - y(r.regular), 0);
-      out += '<rect x="' + gx.toFixed(1) + '" y="' + y(r.guest).toFixed(1) + '" width="' + barW + '" height="' + gh.toFixed(1) + '" rx="3" fill="var(--accent-guest)"></rect>';
-      out += '<rect x="' + rx.toFixed(1) + '" y="' + y(r.regular).toFixed(1) + '" width="' + barW + '" height="' + rh.toFixed(1) + '" rx="3" fill="var(--accent-regular)"></rect>';
-      if (r.guest > 0) out += '<text x="' + (gx + barW / 2).toFixed(1) + '" y="' + (y(r.guest) - 8).toFixed(1) + '" font-size="11" text-anchor="middle" fill="var(--accent-guest)">' + r.guest + '</text>';
-      if (r.regular > 0) out += '<text x="' + (rx + barW / 2).toFixed(1) + '" y="' + (y(r.regular) - 8).toFixed(1) + '" font-size="11" text-anchor="middle" fill="var(--accent-regular)">' + r.regular + '</text>';
+      var start = x(i) - groupW / 2;
+      series.forEach(function(s, j){
+        var v = r[s.key];
+        var bx = start + j * (barW + gap);
+        var by = y(v);
+        var h = Math.max(areaBase - by, 0);
+        out += '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + barW + '" height="' + h.toFixed(1) + '" rx="3" fill="' + s.color + '"></rect>';
+        if (v > 0) out += '<text x="' + (bx + barW / 2).toFixed(1) + '" y="' + (by - 8).toFixed(1) + '" font-size="11" text-anchor="middle" fill="' + s.color + '">' + v + '</text>';
+      });
     });
     return out;
   }
@@ -550,6 +625,29 @@ img.max{ max-width:100%; }
     if (!btn || btn.classList.contains("active")) return;
     state.chartType = btn.dataset.type;
     this.querySelectorAll("button").forEach(function(b){ b.classList.toggle("active", b === btn); });
+    renderChart();
+  });
+
+  state.dayFilter = "all";
+  state.series = { guest: true, regular: true, total: false };
+
+  document.getElementById("dayFilter").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-day]");
+    if (!btn) return;
+    state.dayFilter = btn.getAttribute("data-day");
+    renderChart();
+  });
+
+  document.getElementById("seriesFilter").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-series]");
+    if (!btn) return;
+    var key = btn.getAttribute("data-series");
+    var next = !state.series[key];
+    if (!next){
+      var onCount = Object.keys(state.series).filter(function(k){ return state.series[k]; }).length;
+      if (onCount <= 1) return; // 최소 하나는 켜져 있어야 함
+    }
+    state.series[key] = next;
     renderChart();
   });
 
